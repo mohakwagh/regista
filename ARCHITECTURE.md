@@ -269,7 +269,8 @@ can do. The layered posture:
    to a user-supplied handler; if none is configured, Ask auto-denies — the harness never
    hangs waiting for input that can't arrive).
 2. **Environment scoping**: workspace-pinned paths and cwd (symlink escapes included),
-   minimal env passthrough (no inherited API keys), hard timeouts, output truncation.
+   minimal env passthrough (no inherited API keys), hard timeouts that kill the whole
+   process group, output truncation.
 3. **Trace**: every decision and every effect is recorded, so there is always an audit log.
 
 For untrusted tasks, run the whole process in a container. A `ContainerEnvironment` that

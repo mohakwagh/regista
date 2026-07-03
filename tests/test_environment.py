@@ -79,8 +79,12 @@ async def test_exec_reports_failure_exit_codes(env: LocalEnvironment) -> None:
     assert result.exit_code == 3
 
 
-async def test_exec_kills_on_timeout(env: LocalEnvironment) -> None:
-    result = await env.exec("sleep 5", timeout_s=0.2)
+# "sleep 5 & wait" forces the shell to fork a child that would survive a
+# shell-only kill and hold the output pipes — the dash-on-Linux behavior that
+# once made this hang, reproduced portably
+@pytest.mark.parametrize("command", ["sleep 5", "sleep 5 & wait"])
+async def test_exec_kills_the_whole_group_on_timeout(env: LocalEnvironment, command: str) -> None:
+    result = await env.exec(command, timeout_s=0.2)
     assert result.timed_out
     assert result.duration_ms < 3000
 

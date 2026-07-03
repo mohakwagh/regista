@@ -21,7 +21,8 @@ class Environment(Protocol):
   pointing outside all raise `WorkspaceViolation` (which the registry converts to an error
   tool result when the path came from the model).
 - `exec` runs with an **allowlisted environment** (`PATH`, `HOME`, `LANG`, …) so shell
-  commands never inherit your API keys, and a hard timeout that kills the process.
+  commands never inherit your API keys, and a hard timeout that kills the whole process
+  group — a forked child can't outlive the command.
 
 ## The boundary that pays for itself
 

@@ -11,7 +11,9 @@ has the full threat model; a container backend is the roadmap answer.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
+import signal
 import time
 from pathlib import Path
 
@@ -86,13 +88,18 @@ class LocalEnvironment:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env={key: os.environ[key] for key in _ENV_PASSTHROUGH if key in os.environ},
+            start_new_session=True,  # own process group, so a timeout kills descendants too
         )
         timed_out = False
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout_s)
         except asyncio.TimeoutError:  # noqa: UP041 — not builtin TimeoutError until 3.11
             timed_out = True
-            process.kill()
+            # Kill the whole group, not just the shell: dash (Linux /bin/sh) forks
+            # children that inherit the output pipes, and communicate() would block
+            # until they exit on their own if they survived the shell.
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
             stdout, stderr = await process.communicate()
         return ExecResult(
             exit_code=process.returncode,
