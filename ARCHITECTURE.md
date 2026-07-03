@@ -150,6 +150,12 @@ Stop conditions: the model finishes (`end_turn`), or the harness stops it (`max_
 `max_cost_usd` budget, unrecoverable error). Whichever fires is recorded in `session.end`
 and surfaced as `RunResult.stop_reason`.
 
+One extra move can happen between turns: if the last response's observed input tokens
+crossed the configured budget, the loop **compacts** — it asks the same provider to
+summarize the older history (a regular, hash-verified `llm.request`/`llm.response` pair)
+and replaces those messages with the summary, then emits `context.compaction`. Because the
+summarization flows through the same provider seam, compacted sessions replay exactly.
+
 ## 5. The trace: event schema
 
 One JSON object per line, append-only, flushed per event (a crash loses at most the event
@@ -164,9 +170,9 @@ clocks). The event types:
 
 | type | carries | replay-critical? |
 |---|---|---|
-| `session.start` | rendered instructions, model, provider, full tool JSON schemas, policy name, regista version | yes — validates replay config matches |
+| `session.start` | rendered instructions, model, provider, full tool JSON schemas, policy name, context config, regista version | yes — replay reconstructs its config from this |
 | `llm.request` | the full normalized `ModelRequest` + `request_hash` | yes |
-| `llm.response` | full normalized response (all content blocks), usage, cost, latency, retries | **yes — the replay payload** |
+| `llm.response` | full normalized response (all content blocks), usage, cost, latency, replayed flag | **yes — the replay payload** |
 | `tool.call` | tool_use_id, name, input | yes |
 | `tool.result` | tool_use_id, content, is_error, duration | yes (stubbed-tool replay + divergence checks) |
 | `permission.decision` | decision, policy name, reason | yes (deny paths must replay identically) |
@@ -197,14 +203,15 @@ Mechanics:
 
 | mode | behavior on divergence | use case |
 |---|---|---|
-| `strict` (default) | raise `ReplayDivergence` with a structural diff pointing at the exact message/turn that changed | CI regression tests |
-| `warn` | log + emit a divergence event, continue positionally | time-travel debugging |
-| `hybrid` | fall through to a real provider from that point on | resume-from-recording |
+| `strict` (default) | raise `ReplayDivergence` with a structural diff pointing at the exact field that changed | CI regression tests |
+| `warn` | emit a `ReplayDivergenceWarning`, continue serving positionally | time-travel debugging |
+| `hybrid` | fall through to a real `fallback` provider from that point on | resume-from-recording |
 
-Tool execution during replay is the caller's choice: **stubbed** (results served from
-recorded `tool.result` events — fully hermetic, zero side effects; the CI mode and the
-default) or **live** (tools re-execute; if a tool's output drifts, the *next* request's hash
-catches it and the diff points at the offending tool result).
+Tool execution during replay is **stubbed**: results are served from recorded
+`tool.result` events by `tool_use_id` — fully hermetic, zero side effects, and it covers
+permission denials too (a denial was recorded as an error tool_result, so the conversation
+replays byte-identically). Live tool re-execution during replay is on the roadmap; when a
+re-executed tool's output drifts, the *next* request's hash catches it.
 
 What this buys you concretely:
 
@@ -223,9 +230,12 @@ The protocol every adapter implements:
 
 ```python
 class Provider(Protocol):
-    name: str
+    name: str    # recorded in session.start
+    model: str   # chosen where the provider is constructed — never defaulted
     async def complete(self, request: ModelRequest) -> ModelResponse: ...
-    def stream(self, request: ModelRequest) -> AsyncContextManager[ProviderStream]: ...
+    def stream(
+        self, request: ModelRequest
+    ) -> AsyncIterator[ProviderDelta | ModelResponse]: ...  # deltas, then the final response
 ```
 
 The internal message model is a **superset of the Anthropic shape** (role + a list of typed
@@ -233,9 +243,9 @@ content blocks, including tool_use/tool_result/thinking as first-class blocks). 
 translation (for OpenAI-style APIs) is easy; flat→rich is lossy — so adapters translate
 *into* the rich shape, never out of the internal one.
 
-- **`anthropic.py`** — official SDK; maps tool_use blocks 1:1; extracts cache read/write
-  tokens into `Usage`; surfaces every retry as an `error` trace event; places a prompt-cache
-  breakpoint on the system prompt by default; preserves thinking-block signatures.
+- **`anthropic.py`** — official SDK (which handles transient retries); maps tool_use blocks
+  1:1; extracts cache read/write tokens into `Usage`; places a prompt-cache breakpoint on
+  the system prompt by default; preserves thinking-block signatures.
 - **`openai_compat.py`** — raw httpx against any `/v1/chat/completions` endpoint (OpenAI,
   Ollama, vLLM, gateways); translates `tool_calls` ↔ tool_use blocks; local backoff retries.
 - **`fake.py`** — scripted responses, records requests. **Public API**, not a test-only
@@ -258,8 +268,8 @@ can do. The layered posture:
    execution: `Allow`, `Deny` (model sees an error result and adapts), or `Ask` (escalates
    to a user-supplied handler; if none is configured, Ask auto-denies — the harness never
    hangs waiting for input that can't arrive).
-2. **Environment scoping**: workspace-pinned paths and cwd, minimal env passthrough,
-   hard timeouts (kill the process group), output truncation.
+2. **Environment scoping**: workspace-pinned paths and cwd (symlink escapes included),
+   minimal env passthrough (no inherited API keys), hard timeouts, output truncation.
 3. **Trace**: every decision and every effect is recorded, so there is always an audit log.
 
 For untrusted tasks, run the whole process in a container. A `ContainerEnvironment` that
