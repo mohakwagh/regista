@@ -1,0 +1,57 @@
+site_name: regista
+site_description: The agent harness with a flight recorder.
+site_url: https://mohakwagh.github.io/regista/
+repo_url: https://github.com/mohakwagh/regista
+repo_name: mohakwagh/regista
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - tables
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Concepts:
+      - The nine primitives: concepts/primitives.md
+      - Instructions: concepts/instructions.md
+      - Tools: concepts/tools.md
+      - Execution environment: concepts/environment.md
+      - Policy (the permission gate): concepts/policy.md
+      - Orchestration (the loop): concepts/loop.md
+      - Context management: concepts/context.md
+      - The trace: concepts/trace.md
+      - Deterministic replay: concepts/replay.md
+      - Providers: concepts/providers.md
+      - Streaming: concepts/streaming.md
+  - API reference: reference.md
