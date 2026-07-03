@@ -106,6 +106,21 @@ class Message(BaseModel):
         return [block for block in self.content if isinstance(block, ToolUseBlock)]
 
 
+class ToolSpec(BaseModel):
+    """What the model sees of a tool: name, description, and JSON Schema input.
+
+    ``parallel_safe`` is harness metadata (read-only tools opt in to concurrent
+    execution); it is never sent to the model.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    description: str
+    input_schema: dict[str, Any]
+    parallel_safe: bool = False
+
+
 class Usage(BaseModel):
     """Token accounting as reported by the provider (never locally estimated).
 
