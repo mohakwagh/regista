@@ -20,16 +20,20 @@ from typing import TYPE_CHECKING, Literal
 
 import regista.trace.events as ev
 from regista.context import ContextConfig, compact_history
-from regista.errors import RegistaError, ReplayDivergence
+from regista.errors import ProviderError, RegistaError, ReplayDivergence
 from regista.policy import Allow, Ask, Deny, PermissionRequest, policy_name
 from regista.pricing import cost_usd
-from regista.providers.base import ModelRequest
+from regista.providers.base import ModelRequest, ModelResponse
+from regista.streaming import ToolCallFinished, ToolCallStarted, TurnCompleted
 from regista.types import Message, ToolResultBlock, Usage
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from regista.policy import AskHandler, PermissionPolicy
     from regista.pricing import ModelPrice
     from regista.providers.base import Provider
+    from regista.streaming import StreamEvent
     from regista.tools import ToolRegistry
     from regista.trace.writer import TraceWriter
     from regista.types import ToolUseBlock
@@ -65,7 +69,12 @@ class LoopOutcome:
     error: str | None = None
 
 
-async def run_loop(task: str, config: LoopConfig, writer: TraceWriter) -> LoopOutcome:
+async def run_loop(
+    task: str,
+    config: LoopConfig,
+    writer: TraceWriter,
+    on_event: Callable[[StreamEvent], None] | None = None,
+) -> LoopOutcome:
     history: list[Message] = [Message.user(task)]
     total_usage = Usage()
     total_cost = 0.0
@@ -97,7 +106,10 @@ async def run_loop(task: str, config: LoopConfig, writer: TraceWriter) -> LoopOu
 
         started = time.monotonic()
         try:
-            response = await config.provider.complete(request)
+            if on_event is None:
+                response = await config.provider.complete(request)
+            else:
+                response = await _consume_stream(config, request, on_event)
         except RegistaError as exc:
             writer.emit(
                 ev.ErrorEvent(phase="llm.request", error_type=type(exc).__name__, message=str(exc))
@@ -124,12 +136,22 @@ async def run_loop(task: str, config: LoopConfig, writer: TraceWriter) -> LoopOu
             )
         )
 
+        if on_event is not None:
+            on_event(
+                TurnCompleted(
+                    turn=turn,
+                    stop_reason=response.stop_reason,
+                    usage=response.usage,
+                    cost_usd=turn_cost,
+                )
+            )
+
         history.append(response.message)
         if text := response.message.text():
             output = text
 
         if response.stop_reason == "tool_use":
-            results = await _run_tools(response.message.tool_uses(), turn, config, writer)
+            results = await _run_tools(response.message.tool_uses(), turn, config, writer, on_event)
             history.append(Message(role="user", content=list(results)))
         elif response.stop_reason in _FINAL_STOP_REASONS:
             return LoopOutcome("completed", output, total_usage, total_cost, turn)
@@ -171,11 +193,31 @@ async def run_loop(task: str, config: LoopConfig, writer: TraceWriter) -> LoopOu
                 total_cost += compaction_cost or 0.0
 
 
+async def _consume_stream(
+    config: LoopConfig,
+    request: ModelRequest,
+    on_event: Callable[[StreamEvent], None],
+) -> ModelResponse:
+    """Forward provider deltas to the consumer; return the final response."""
+    response: ModelResponse | None = None
+    async for item in config.provider.stream(request):
+        if isinstance(item, ModelResponse):
+            response = item
+        else:
+            on_event(item)
+    if response is None:
+        raise ProviderError(
+            "stream ended without a final ModelResponse", provider=config.provider.name
+        )
+    return response
+
+
 async def _run_tools(
     tool_uses: list[ToolUseBlock],
     turn: int,
     config: LoopConfig,
     writer: TraceWriter,
+    on_event: Callable[[StreamEvent], None] | None = None,
 ) -> list[ToolResultBlock]:
     """Gate every call, then execute — concurrently iff the whole batch opted in."""
     permitted: list[ToolUseBlock] = []
@@ -183,6 +225,8 @@ async def _run_tools(
 
     for block in tool_uses:
         writer.emit(ev.ToolCall(tool_use_id=block.id, name=block.name, input=block.input))
+        if on_event is not None:
+            on_event(ToolCallStarted(tool_use_id=block.id, name=block.name, input=block.input))
         reason = await _gate(block, turn, config, writer)
         if reason is None:
             permitted.append(block)
@@ -199,6 +243,15 @@ async def _run_tools(
                 duration_ms=execution.duration_ms,
             )
         )
+        if on_event is not None:
+            on_event(
+                ToolCallFinished(
+                    tool_use_id=block.id,
+                    name=block.name,
+                    content=execution.content,
+                    is_error=execution.is_error,
+                )
+            )
         return ToolResultBlock(
             tool_use_id=block.id, content=execution.content, is_error=execution.is_error
         )
@@ -214,6 +267,12 @@ async def _run_tools(
         if block.id in denials:
             content = f"Permission denied: {denials[block.id]}"
             writer.emit(ev.ToolResult(tool_use_id=block.id, content=content, is_error=True))
+            if on_event is not None:
+                on_event(
+                    ToolCallFinished(
+                        tool_use_id=block.id, name=block.name, content=content, is_error=True
+                    )
+                )
             results.append(ToolResultBlock(tool_use_id=block.id, content=content, is_error=True))
         else:
             results.append(by_id[block.id])

@@ -23,7 +23,10 @@ from regista.policy import policy_name
 from regista.trace.writer import TraceWriter
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from regista.loop import LoopConfig, StopReason
+    from regista.streaming import StreamEvent
     from regista.types import Usage
 
 
@@ -58,7 +61,7 @@ class Session:
         self.session_id = new_ulid()
         self.trace_path = Path(trace_dir) / f"{self.session_id}.jsonl"
 
-    async def run(self) -> RunResult:
+    async def run(self, on_event: Callable[[StreamEvent], None] | None = None) -> RunResult:
         started = time.monotonic()
         with TraceWriter(self.trace_path, self.session_id) as writer:
             writer.emit(
@@ -76,7 +79,7 @@ class Session:
                     replay_of=self.replay_of,
                 )
             )
-            outcome = await run_loop(self.task, self.config, writer)
+            outcome = await run_loop(self.task, self.config, writer, on_event)
             writer.emit(
                 ev.SessionEnd(
                     stop_reason=outcome.stop_reason,

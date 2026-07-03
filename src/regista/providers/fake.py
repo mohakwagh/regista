@@ -6,11 +6,17 @@ Users unit-test their agents with it; contributors test loop changes with it;
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from regista.errors import ProviderError
 from regista.providers.base import ModelRequest, ModelResponse
+from regista.streaming import synthetic_deltas
 from regista.types import Message, TextBlock, ToolUseBlock, Usage
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from regista.streaming import ProviderDelta
 
 
 def text_response(text: str, *, usage: Usage | None = None) -> ModelResponse:
@@ -65,3 +71,9 @@ class FakeProvider:
         response = self._responses[self._served]
         self._served += 1
         return response
+
+    async def stream(self, request: ModelRequest) -> AsyncIterator[ProviderDelta | ModelResponse]:
+        response = await self.complete(request)
+        for delta in synthetic_deltas(response.message):
+            yield delta
+        yield response

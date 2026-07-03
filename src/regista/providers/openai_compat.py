@@ -1,4 +1,4 @@
-"""OpenAI-compatible Chat Completions adapter (raw httpx, non-streaming).
+"""OpenAI-compatible Chat Completions adapter (raw httpx).
 
 One adapter covers OpenAI itself and everything that speaks its dialect —
 Ollama (``base_url="http://localhost:11434/v1"``), vLLM, LM Studio — which is
@@ -14,20 +14,19 @@ rich blocks flatten to OpenAI's string-content messages.
 - tool arguments arrive as a JSON string; if a model emits invalid JSON the
   input becomes ``{"raw_arguments": ...}`` so dispatch fails loudly as
   error-data the model can react to, instead of killing the session
-
-Streaming arrives in step 12.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from regista.errors import ProviderError
 from regista.providers.base import ModelRequest, ModelResponse
+from regista.streaming import TextDelta
 from regista.types import (
     ContentBlock,
     Message,
@@ -37,6 +36,11 @@ from regista.types import (
     ToolUseBlock,
     Usage,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from regista.streaming import ProviderDelta
 
 _STOP_REASONS: dict[str, StopReason] = {
     "stop": "end_turn",
@@ -118,7 +122,7 @@ class OpenAICompatProvider:
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def complete(self, request: ModelRequest) -> ModelResponse:
+    def _build_payload(self, request: ModelRequest) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "model": request.model,
             "max_tokens": request.max_tokens,
@@ -137,7 +141,27 @@ class OpenAICompatProvider:
                 for t in request.tools
             ]
         payload.update(request.params)
+        return payload
 
+    def _status_error(self, status_code: int, body: str) -> ProviderError:
+        retryable = status_code in (408, 429) or status_code >= 500
+        return ProviderError(
+            f"endpoint returned {status_code}: {body[:500]}",
+            provider=self.name,
+            retryable=retryable,
+        )
+
+    @staticmethod
+    def _usage_from(usage: dict[str, Any]) -> Usage:
+        cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
+        return Usage(
+            input_tokens=usage.get("prompt_tokens") or 0,
+            output_tokens=usage.get("completion_tokens") or 0,
+            cache_read_tokens=cached,
+        )
+
+    async def complete(self, request: ModelRequest) -> ModelResponse:
+        payload = self._build_payload(request)
         last_error = ProviderError("no attempts made", provider=self.name)
         for attempt in range(self._max_retries + 1):
             try:
@@ -151,13 +175,8 @@ class OpenAICompatProvider:
             else:
                 if response.status_code == 200:
                     return self._normalize(response.json())
-                retryable = response.status_code in (408, 429) or response.status_code >= 500
-                last_error = ProviderError(
-                    f"endpoint returned {response.status_code}: {response.text[:500]}",
-                    provider=self.name,
-                    retryable=retryable,
-                )
-                if not retryable:
+                last_error = self._status_error(response.status_code, response.text)
+                if not last_error.retryable:
                     raise last_error
             if attempt < self._max_retries:
                 await asyncio.sleep(self._backoff_base_s * 2**attempt)
@@ -185,17 +204,88 @@ class OpenAICompatProvider:
                 )
             )
 
-        usage = body.get("usage") or {}
-        cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
         return ModelResponse(
             message=Message(role="assistant", content=content),
             stop_reason=_STOP_REASONS.get(choice.get("finish_reason"), "other"),
-            usage=Usage(
-                input_tokens=usage.get("prompt_tokens") or 0,
-                output_tokens=usage.get("completion_tokens") or 0,
-                cache_read_tokens=cached,
-            ),
+            usage=self._usage_from(body.get("usage") or {}),
             model=body.get("model") or self.model,
             request_id=body.get("id"),
             raw=body,
+        )
+
+    async def stream(self, request: ModelRequest) -> AsyncIterator[ProviderDelta | ModelResponse]:
+        """SSE streaming: one attempt, no retry loop (a broken stream can't be
+        resumed mid-response). Tool-call arguments arrive in fragments and are
+        assembled per index before parsing."""
+        payload = self._build_payload(request)
+        payload["stream"] = True
+        payload["stream_options"] = {"include_usage": True}
+
+        text_parts: list[str] = []
+        calls: dict[int, dict[str, str]] = {}
+        finish_reason = ""
+        usage: dict[str, Any] = {}
+        response_model = ""
+        request_id: str | None = None
+
+        try:
+            async with self._client.stream("POST", "/chat/completions", json=payload) as response:
+                if response.status_code != 200:
+                    body = (await response.aread()).decode(errors="replace")
+                    raise self._status_error(response.status_code, body)
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[len("data:") :].strip()
+                    if data == "[DONE]":
+                        break
+                    chunk = json.loads(data)
+                    response_model = chunk.get("model") or response_model
+                    request_id = chunk.get("id") or request_id
+                    if chunk.get("usage"):
+                        usage = chunk["usage"]
+                    for choice in chunk.get("choices") or []:
+                        if choice.get("finish_reason"):
+                            finish_reason = choice["finish_reason"]
+                        delta = choice.get("delta") or {}
+                        if delta.get("content"):
+                            text_parts.append(delta["content"])
+                            yield TextDelta(delta["content"])
+                        for fragment in delta.get("tool_calls") or []:
+                            slot = calls.setdefault(
+                                fragment.get("index") or 0,
+                                {"id": "", "name": "", "arguments": ""},
+                            )
+                            if fragment.get("id"):
+                                slot["id"] = fragment["id"]
+                            function = fragment.get("function") or {}
+                            if function.get("name"):
+                                slot["name"] = function["name"]
+                            if function.get("arguments"):
+                                slot["arguments"] += function["arguments"]
+        except httpx.TransportError as exc:
+            raise ProviderError(
+                f"stream from {self._client.base_url} failed: {exc}",
+                provider=self.name,
+                retryable=True,
+            ) from exc
+
+        content: list[ContentBlock] = []
+        if text_parts:
+            content.append(TextBlock(text="".join(text_parts)))
+        for index in sorted(calls):
+            slot = calls[index]
+            content.append(
+                ToolUseBlock(
+                    id=slot["id"] or f"call_{index}",
+                    name=slot["name"],
+                    input=_parse_arguments(slot["arguments"]),
+                )
+            )
+        yield ModelResponse(
+            message=Message(role="assistant", content=content),
+            stop_reason=_STOP_REASONS.get(finish_reason, "other"),
+            usage=self._usage_from(usage),
+            model=response_model or self.model,
+            request_id=request_id,
         )

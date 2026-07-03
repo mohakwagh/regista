@@ -10,12 +10,17 @@ Streaming lands in v0.1 step 12; the protocol grows a ``stream()`` method then.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict
 
 from regista.trace.events import canonical_hash
 from regista.types import Message, StopReason, ToolSpec, Usage
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from regista.streaming import ProviderDelta
 
 
 class ModelRequest(BaseModel):
@@ -76,3 +81,11 @@ class Provider(Protocol):
     def model(self) -> str: ...
 
     async def complete(self, request: ModelRequest) -> ModelResponse: ...
+
+    def stream(self, request: ModelRequest) -> AsyncIterator[ProviderDelta | ModelResponse]:
+        """Yield deltas as they arrive, then the final ModelResponse last.
+
+        Adapters without native streaming can wrap ``complete()`` with
+        ``regista.streaming.synthetic_deltas``.
+        """
+        ...

@@ -16,15 +16,18 @@ from regista.instructions import Instructions
 from regista.loop import LoopConfig
 from regista.policy import allow_all
 from regista.session import Session
+from regista.streaming import RunCompleted
 from regista.tools import ToolRegistry
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
     from pathlib import Path
 
     from regista.policy import AskHandler, PermissionPolicy
     from regista.pricing import ModelPrice
     from regista.providers.base import Provider
     from regista.session import RunResult
+    from regista.streaming import StreamEvent
     from regista.tools import Tool
 
 
@@ -72,6 +75,37 @@ class Agent:
     async def run(self, task: str) -> RunResult:
         """Run one task to completion in a fresh traced session."""
         return await Session(task, self._config, self.trace_dir).run()
+
+    async def stream(self, task: str) -> AsyncIterator[StreamEvent]:
+        """Run one task, yielding events as they happen.
+
+        Yields TextDelta/ThinkingDelta/ToolCallStarted/ToolCallFinished/
+        TurnCompleted as the session progresses, then RunCompleted with the
+        same RunResult ``run()`` would return. The trace is identical to a
+        blocking run — streaming changes when you see things, not what
+        happened.
+        """
+        queue: asyncio.Queue[StreamEvent | None] = asyncio.Queue()
+        session = Session(task, self._config, self.trace_dir)
+
+        async def pump() -> RunResult:
+            try:
+                return await session.run(on_event=queue.put_nowait)
+            finally:
+                queue.put_nowait(None)  # sentinel: no more events
+
+        runner = asyncio.ensure_future(pump())
+        try:
+            while True:
+                event = await queue.get()
+                if event is None:
+                    break
+                yield event
+            yield RunCompleted(await runner)  # re-raises if the session raised
+        finally:
+            if not runner.done():
+                runner.cancel()
+                await asyncio.gather(runner, return_exceptions=True)
 
     def run_sync(self, task: str) -> RunResult:
         """``run()`` for synchronous callers (scripts, notebooks without top-level await)."""

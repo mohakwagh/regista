@@ -11,6 +11,15 @@ from regista.context import ContextConfig
 from regista.instructions import Instructions
 from regista.replay import replay
 from regista.session import RunResult, Session
+from regista.streaming import (
+    RunCompleted,
+    StreamEvent,
+    TextDelta,
+    ThinkingDelta,
+    ToolCallFinished,
+    ToolCallStarted,
+    TurnCompleted,
+)
 from regista.tools import Tool, tool
 from regista.types import Message, Usage
 
@@ -19,9 +28,16 @@ __all__ = [
     "ContextConfig",
     "Instructions",
     "Message",
+    "RunCompleted",
     "RunResult",
     "Session",
+    "StreamEvent",
+    "TextDelta",
+    "ThinkingDelta",
     "Tool",
+    "ToolCallFinished",
+    "ToolCallStarted",
+    "TurnCompleted",
     "Usage",
     "__version__",
     "replay",

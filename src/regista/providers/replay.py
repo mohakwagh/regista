@@ -23,9 +23,13 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from regista.errors import ConfigurationError, ReplayDivergence
 from regista.providers.base import ModelResponse
+from regista.streaming import synthetic_deltas
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from regista.providers.base import ModelRequest, Provider
+    from regista.streaming import ProviderDelta
     from regista.trace.reader import Trace
 
 ReplayMode = Literal["strict", "warn", "hybrid"]
@@ -116,3 +120,11 @@ class ReplayProvider:
         self._index += 1
         replayed = ModelResponse.model_validate(recorded_response.response)
         return replayed.model_copy(update={"replayed": True})
+
+    async def stream(self, request: ModelRequest) -> AsyncIterator[ProviderDelta | ModelResponse]:
+        """Synthetic deltas from the recorded response — a replay can drive a
+        live UI exactly like the original run did."""
+        response = await self.complete(request)
+        for delta in synthetic_deltas(response.message):
+            yield delta
+        yield response
