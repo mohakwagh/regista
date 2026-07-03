@@ -1,0 +1,36 @@
+name: Release
+
+# Publishes to PyPI via trusted publishing (OIDC — no API token stored).
+# Trigger: pushing a version tag, e.g. `git tag v0.1.0 && git push origin v0.1.0`.
+# One-time setup: PyPI -> Publishing -> add pending publisher for this repo,
+# workflow "release.yml", environment "pypi"; then create the "pypi"
+# environment in the repo settings.
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # OIDC for trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
