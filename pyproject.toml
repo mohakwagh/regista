@@ -73,6 +73,9 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["SIM117"]
 
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+
 [tool.mypy]
 strict = true
 files = ["src"]
