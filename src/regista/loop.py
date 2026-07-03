@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 import regista.trace.events as ev
-from regista.errors import RegistaError
+from regista.errors import RegistaError, ReplayDivergence
 from regista.policy import Allow, Ask, Deny, PermissionRequest, policy_name
 from regista.pricing import cost_usd
 from regista.providers.base import ModelRequest
@@ -100,10 +100,15 @@ async def run_loop(task: str, config: LoopConfig, writer: TraceWriter) -> LoopOu
             writer.emit(
                 ev.ErrorEvent(phase="llm.request", error_type=type(exc).__name__, message=str(exc))
             )
+            if isinstance(exc, ReplayDivergence):
+                raise  # strict replay must surface to the caller, not become error data
             return LoopOutcome("error", output, total_usage, total_cost, turn, error=str(exc))
         latency_ms = int((time.monotonic() - started) * 1000)
 
-        turn_cost = cost_usd(response.model, response.usage, config.price_overrides)
+        if response.replayed:
+            turn_cost: float | None = 0.0  # a recording costs nothing to serve
+        else:
+            turn_cost = cost_usd(response.model, response.usage, config.price_overrides)
         total_usage = total_usage + response.usage
         total_cost += turn_cost or 0.0
         writer.emit(
@@ -113,6 +118,7 @@ async def run_loop(task: str, config: LoopConfig, writer: TraceWriter) -> LoopOu
                 usage=response.usage,
                 cost_usd=turn_cost,
                 latency_ms=latency_ms,
+                replayed=response.replayed,
             )
         )
 
@@ -148,7 +154,7 @@ async def _run_tools(
             denials[block.id] = reason
 
     async def execute(block: ToolUseBlock) -> ToolResultBlock:
-        execution = await config.registry.execute(block.name, block.input)
+        execution = await config.registry.execute(block.name, block.input, tool_use_id=block.id)
         writer.emit(
             ev.ToolResult(
                 tool_use_id=block.id,

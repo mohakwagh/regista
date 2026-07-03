@@ -8,6 +8,7 @@ See ARCHITECTURE.md for the full design.
 from regista._version import __version__
 from regista.agent import Agent
 from regista.instructions import Instructions
+from regista.replay import replay
 from regista.session import RunResult, Session
 from regista.tools import Tool, tool
 from regista.types import Message, Usage
@@ -21,5 +22,6 @@ __all__ = [
     "Tool",
     "Usage",
     "__version__",
+    "replay",
     "tool",
 ]

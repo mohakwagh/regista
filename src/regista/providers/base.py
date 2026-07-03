@@ -41,8 +41,10 @@ class ModelRequest(BaseModel):
 
 
 class ModelResponse(BaseModel):
-    """A normalized response. ``raw`` is the provider's escape hatch — excluded
-    from serialization so it never leaks into traces or hashes."""
+    """A normalized response. ``raw`` is the provider's escape hatch and
+    ``replayed`` marks responses served from a recording — both are excluded
+    from trace serialization so a replay's payload stays byte-identical to
+    the original's."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -52,10 +54,11 @@ class ModelResponse(BaseModel):
     model: str = ""
     request_id: str | None = None
     raw: dict[str, Any] | None = None
+    replayed: bool = False
 
     def model_dump_trace(self) -> dict[str, Any]:
         """The dict recorded in llm.response events (and served back by replay)."""
-        return self.model_dump(mode="json", exclude={"raw"})
+        return self.model_dump(mode="json", exclude={"raw", "replayed"})
 
 
 @runtime_checkable

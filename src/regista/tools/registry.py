@@ -120,12 +120,15 @@ class ToolRegistry:
     def specs(self) -> list[ToolSpec]:
         return [t.spec for t in self._tools.values()]
 
-    async def execute(self, name: str, input: dict[str, Any]) -> ToolExecution:
+    async def execute(
+        self, name: str, input: dict[str, Any], *, tool_use_id: str = ""
+    ) -> ToolExecution:
         """Execute a tool call, capturing failures as data.
 
         A tool that raises produces ``is_error=True`` content the model can
         adapt to — only an unknown tool name is a harness fault (ToolError,
-        raised by ``get``).
+        raised by ``get``). ``tool_use_id`` is unused here; replay's stub
+        registry keys recorded results on it.
         """
         tool = self.get(name)
         started = time.monotonic()
