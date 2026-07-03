@@ -40,6 +40,16 @@ class ToolError(RegistaError):
     """
 
 
+class WorkspaceViolation(RegistaError):
+    """A path or command tried to act outside the environment's workspace root.
+
+    Raised by Environment implementations; when the offending path came from
+    the model, the registry converts it into ``tool_result(is_error=True)``
+    like any other tool failure. This is scoping, not sandboxing — see
+    SECURITY.md for the honest threat model.
+    """
+
+
 class ReplayDivergence(RegistaError):
     """A replayed request no longer matches the recording (strict mode).
 
