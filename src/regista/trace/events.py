@@ -61,6 +61,8 @@ class SessionStart(_Event):
     provider: str
     tool_schemas: list[dict[str, Any]]
     policy: str
+    context: dict[str, Any] = {}
+    """ContextConfig dump — replay needs it to compact at the same points."""
     regista_version: str
     replay_of: str | None = None
 

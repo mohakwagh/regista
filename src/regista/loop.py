@@ -15,10 +15,11 @@ from __future__ import annotations
 
 import asyncio
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 import regista.trace.events as ev
+from regista.context import ContextConfig, compact_history
 from regista.errors import RegistaError, ReplayDivergence
 from regista.policy import Allow, Ask, Deny, PermissionRequest, policy_name
 from regista.pricing import cost_usd
@@ -51,6 +52,7 @@ class LoopConfig:
     max_tokens: int
     params: dict[str, object]
     price_overrides: dict[str, ModelPrice] | None = None
+    context: ContextConfig = field(default_factory=ContextConfig)
 
 
 @dataclass(frozen=True)
@@ -129,10 +131,44 @@ async def run_loop(task: str, config: LoopConfig, writer: TraceWriter) -> LoopOu
         if response.stop_reason == "tool_use":
             results = await _run_tools(response.message.tool_uses(), turn, config, writer)
             history.append(Message(role="user", content=list(results)))
-        elif response.stop_reason == "pause_turn":
-            continue  # provider paused a long turn; re-send accumulated history as-is
         elif response.stop_reason in _FINAL_STOP_REASONS:
             return LoopOutcome("completed", output, total_usage, total_cost, turn)
+        # (pause_turn falls through: re-send accumulated history as-is)
+
+        # the loop continues — compact if this turn's input crossed the budget
+        observed = (
+            response.usage.input_tokens
+            + response.usage.cache_read_tokens
+            + response.usage.cache_write_tokens
+        )
+        if config.context.max_input_tokens is not None and (
+            observed >= config.context.max_input_tokens
+        ):
+            try:
+                compacted = await compact_history(
+                    history,
+                    provider=config.provider,
+                    context=config.context,
+                    writer=writer,
+                    turn=turn,
+                    observed_input_tokens=observed,
+                    price_overrides=config.price_overrides,
+                )
+            except RegistaError as exc:
+                writer.emit(
+                    ev.ErrorEvent(
+                        phase="context.compaction",
+                        error_type=type(exc).__name__,
+                        message=str(exc),
+                    )
+                )
+                if isinstance(exc, ReplayDivergence):
+                    raise
+                return LoopOutcome("error", output, total_usage, total_cost, turn, error=str(exc))
+            if compacted is not None:
+                history, compaction_usage, compaction_cost = compacted
+                total_usage = total_usage + compaction_usage
+                total_cost += compaction_cost or 0.0
 
 
 async def _run_tools(

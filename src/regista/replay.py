@@ -22,6 +22,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from regista.context import ContextConfig
 from regista.loop import LoopConfig
 from regista.policy import Allow, PermissionDecision
 from regista.providers.base import ModelRequest
@@ -115,6 +116,7 @@ async def replay(
         max_cost_usd=None,
         max_tokens=first_request.max_tokens,
         params=dict(first_request.params),
+        context=ContextConfig.model_validate(start.context),
     )
     session = Session(
         start.task, config, trace_dir or trace_path.parent, replay_of=start.session_id

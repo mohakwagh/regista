@@ -71,6 +71,7 @@ class Session:
                         spec.model_dump(mode="json") for spec in self.config.registry.specs()
                     ],
                     policy=policy_name(self.config.policy),
+                    context=self.config.context.model_dump(mode="json"),
                     regista_version=__version__,
                     replay_of=self.replay_of,
                 )

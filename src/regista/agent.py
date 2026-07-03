@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from regista.context import ContextConfig
 from regista.errors import ConfigurationError
 from regista.instructions import Instructions
 from regista.loop import LoopConfig
@@ -48,6 +49,7 @@ class Agent:
         max_tokens: int = 8192,
         params: dict[str, Any] | None = None,
         price_overrides: dict[str, ModelPrice] | None = None,
+        context: ContextConfig | None = None,
     ) -> None:
         if max_turns < 1:
             raise ConfigurationError(f"max_turns must be >= 1, got {max_turns}")
@@ -64,6 +66,7 @@ class Agent:
             max_tokens=max_tokens,
             params=params or {},
             price_overrides=price_overrides,
+            context=context or ContextConfig(),
         )
 
     async def run(self, task: str) -> RunResult:
