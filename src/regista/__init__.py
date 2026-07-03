@@ -5,6 +5,21 @@ recording every session as a structured, deterministically replayable trace.
 See ARCHITECTURE.md for the full design.
 """
 
-__version__ = "0.1.0.dev0"
+from regista._version import __version__
+from regista.agent import Agent
+from regista.instructions import Instructions
+from regista.session import RunResult, Session
+from regista.tools import Tool, tool
+from regista.types import Message, Usage
 
-__all__ = ["__version__"]
+__all__ = [
+    "Agent",
+    "Instructions",
+    "Message",
+    "RunResult",
+    "Session",
+    "Tool",
+    "Usage",
+    "__version__",
+    "tool",
+]

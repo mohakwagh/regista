@@ -60,9 +60,16 @@ class ModelResponse(BaseModel):
 
 @runtime_checkable
 class Provider(Protocol):
-    """Anything that can turn a ModelRequest into a ModelResponse."""
+    """Anything that can turn a ModelRequest into a ModelResponse.
+
+    ``model`` is part of the protocol because the model is chosen where the
+    provider is constructed — the loop only reads it to assemble requests.
+    """
 
     @property
     def name(self) -> str: ...
+
+    @property
+    def model(self) -> str: ...
 
     async def complete(self, request: ModelRequest) -> ModelResponse: ...

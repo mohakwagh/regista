@@ -49,7 +49,8 @@ class FakeProvider:
 
     name = "fake"
 
-    def __init__(self, responses: list[ModelResponse]) -> None:
+    def __init__(self, responses: list[ModelResponse], *, model: str = "fake-model") -> None:
+        self.model = model
         self._responses = list(responses)
         self._served = 0
         self.requests: list[ModelRequest] = []
