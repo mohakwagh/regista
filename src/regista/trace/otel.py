@@ -7,7 +7,7 @@ instrumentation path to drift out of sync with the JSONL log.
 
 Span hierarchy: session → turn → llm / tool. LLM spans carry ``gen_ai.*``
 semantic-convention attributes plus regista extras (request_hash, cost,
-replayed). Requires the ``otel`` extra: ``pip install regista[otel]``.
+replayed). Requires the ``otel`` extra: ``pip install "regista-harness[otel]"``.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def _otel() -> Any:
         from opentelemetry import trace as otel_trace
     except ImportError as exc:  # pragma: no cover — dev env always has it
         raise ConfigurationError(
-            "OpenTelemetry export needs the otel extra: pip install regista[otel]"
+            'OpenTelemetry export needs the otel extra: pip install "regista-harness[otel]"'
         ) from exc
     return otel_trace
 

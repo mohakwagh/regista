@@ -6,6 +6,9 @@ All notable changes to regista are documented here. The format follows
 
 ## [Unreleased]
 
+The PyPI distribution is `regista-harness` (the bare name `regista` was squatted by a
+placeholder upload; a PEP 541 claim is pending). The import name is `regista`.
+
 ### Added
 - **Core loop**: `Agent` / `Session` / `run_loop` — traced turn engine with
   `max_turns` and `max_cost_usd` stops, parallel-safe tool batching, and a

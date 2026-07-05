@@ -116,6 +116,9 @@ have never built an agent.
 
 ## Try it
 
+On PyPI the distribution is named **`regista-harness`** (the bare name was squatted);
+the import name is `regista` everywhere. From source:
+
 ```bash
 git clone https://github.com/mohakwagh/regista && cd regista
 uv sync

@@ -45,7 +45,7 @@ export_trace(Trace.load(result.trace_path))   # to the global tracer provider
 
 Exporting yesterday's session (or a $0 replay of it) paints the same picture in Jaeger or
 Grafana as a live run would have. One log; no second instrumentation path to drift.
-Requires the `otel` extra: `pip install regista[otel]`.
+Requires the `otel` extra: `pip install "regista-harness[otel]"`.
 
 ## The rule
 
