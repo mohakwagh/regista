@@ -6,6 +6,10 @@ All notable changes to regista are documented here. The format follows
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] — 2026-07-05
+
 The PyPI distribution is `regista-harness` (the bare name `regista` was squatted by a
 placeholder upload; a PEP 541 claim is pending). The import name is `regista`.
 
