@@ -31,6 +31,7 @@ dependencies = [
 
 [project.optional-dependencies]
 otel = ["opentelemetry-api>=1.25", "opentelemetry-sdk>=1.25"]
+mcp = ["mcp>=1.2"]
 
 # The distribution is regista-harness but the import package is regista, so
 # hatchling can't infer the wheel contents from the project name.
@@ -53,6 +54,7 @@ dev = [
     "mypy>=1.11",
     "pre-commit>=3.8",
     "opentelemetry-sdk>=1.25",
+    "mcp>=1.2",
 ]
 docs = [
     "mkdocs-material>=9.5",

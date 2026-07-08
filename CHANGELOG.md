@@ -7,6 +7,11 @@ All notable changes to regista are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **MCP client** (`regista.tools.mcp`, `[mcp]` extra): `MCPServer.stdio(...)` /
+  `MCPServer.http(...)` connect to any Model Context Protocol server and wrap its tools
+  as ordinary regista tools — same trace events, same policy gate, `prefix=` for
+  namespacing, server failures surfaced as error-data. Sessions that used MCP tools
+  replay hermetically without the server.
 - **`Agent.resume(trace_path)`**: continue an interrupted session from its trace. The
   recorded prefix replays for $0 (hash-verified, recorded tool results served — effects
   never re-run); the first request the recording can't answer falls through to the

@@ -39,7 +39,7 @@ the contributor's map: pick a primitive, and you know which directory it lives i
 |---|---|---|---|---|
 | 1 | **Instructions** | `regista/instructions.py` | What the agent is told: a layered system prompt (base + sections + task), rendered once per session and recorded in the trace. | v0.1 |
 | 2 | **Context management** | `regista/context/` | What the model remembers: token/cost budgets from provider-reported usage; compaction (summarizing old turns) when the window fills. | v0.1 |
-| 3 | **Tool interface** | `regista/tools/` | What the model can ask for: `@tool` turns a typed Python function into a JSON-Schema tool; the registry dispatches calls. Defines **what** a capability is, never **where** it runs. | v0.1 (MCP client: v0.2) |
+| 3 | **Tool interface** | `regista/tools/` | What the model can ask for: `@tool` turns a typed Python function into a JSON-Schema tool; the registry dispatches calls; `MCPServer` lets any MCP server's tools join the registry. Defines **what** a capability is, never **where** it runs. | v0.1 (MCP client: v0.2, shipped) |
 | 4 | **Execution environment** | `regista/environment/` | Where effects happen: file ops and process execution behind one protocol, pinned to a workspace. `LocalEnvironment` today; a container backend is a drop-in, not a rewrite. | v0.1 |
 | 5 | **Durable state** | `regista/trace/` + `session.py` | What survives a crash: **the trace IS the durable state.** It holds the full history, so resuming a session is just replaying its trace and continuing — `Agent.resume(trace_path)`. | v0.1 (resume: v0.2, shipped) |
 | 6 | **Orchestration** | `regista/loop.py` | The turn engine: request → response → tool dispatch → repeat. ~250 lines, readable top-to-bottom, owns no I/O of its own. | v0.1 |
@@ -100,7 +100,8 @@ core imports `cli/` (a reserved, empty namespace for a future CLI).
 - **`providers/`** — the LLM boundary: one protocol (`complete()` / `stream()`), four
   implementations — `anthropic`, `openai_compat`, `fake` (for tests), `replay` (see §6).
 - **`tools/`** — capability registry: schema generation from Python signatures, dispatch,
-  built-in tools (files/shell/search/fetch).
+  built-in tools (files/shell/search/fetch), MCP client (`mcp.py`, `[mcp]` extra — any MCP
+  server's tools wrap as ordinary registry entries).
 - **`environment/`** — effect boundary: file ops + process exec behind a protocol, workspace-scoped.
 - **`policy/`** — the gate: a pure function `(PermissionRequest) → Allow | Deny | Ask`.
 - **`context/`** — the memory manager: budgets and compaction.
@@ -296,8 +297,8 @@ precisely so that it's a drop-in, not a rewrite. See SECURITY.md for the threat 
 
 - **v0.1** — everything marked v0.1 above: the loop, both providers, tools + environment +
   policy, budgets + compaction, trace + replay + OTel export.
-- **v0.2** — `Agent.resume()` (shipped) · eval/regression runner (task suites with outcome
-  and trace-shape assertions, replay-powered $0 CI mode) · MCP client (any MCP server's
-  tools join the registry).
+- **v0.2** — `Agent.resume()` (shipped) · MCP client (shipped: `regista/tools/mcp.py`,
+  stdio + streamable HTTP, `[mcp]` extra) · eval/regression runner (task suites with
+  outcome and trace-shape assertions, replay-powered $0 CI mode).
 - **v0.3** — subagents · Skills · `ContainerEnvironment`.
 - **Later** — file checkpoints/rollback, cross-session memory.

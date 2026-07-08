@@ -16,6 +16,8 @@ The public API, generated from docstrings.
 
 ::: regista.tools.builtin.builtin_tools
 
+::: regista.tools.mcp.MCPServer
+
 ## Replay
 
 ::: regista.replay.replay

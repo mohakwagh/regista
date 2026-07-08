@@ -21,8 +21,8 @@ pip install regista-harness        # the import name is `regista`
 
 **Status: v0.1 released, v0.2 in progress.** Loop, tools, environment, policy, Anthropic +
 OpenAI-compatible providers, streaming, compaction, deterministic replay, OTel export —
-140+ tests, strict mypy, every subsystem traced. `Agent.resume` has landed on main; MCP
-client and the eval runner are next.
+150+ tests, strict mypy, every subsystem traced. `Agent.resume` and the MCP client have
+landed on main; the eval runner is next.
 
 ## Why another harness?
 
@@ -137,12 +137,13 @@ git clone https://github.com/mohakwagh/regista && cd regista
 uv sync
 uv run python examples/01_hello_agent.py      # $0: scripted model, real loop, real trace
 uv run python examples/05_replay.py           # $0: replay + a divergence diff
+uv run --extra mcp python examples/06_mcp.py  # $0: MCP tools, replayed with the server off
 ANTHROPIC_API_KEY=... uv run python examples/04_real_provider.py   # ~1 cent
 ```
 
 ## Roadmap
 
-- **v0.2** — `Agent.resume()` (on main) · eval/regression runner (replay-powered $0 CI) · MCP client
+- **v0.2** — `Agent.resume()` (on main) · MCP client (on main) · eval/regression runner (replay-powered $0 CI)
 - **v0.3** — subagents · Skills · `ContainerEnvironment`
 
 ## Safety, honestly
