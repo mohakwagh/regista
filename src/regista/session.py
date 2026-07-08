@@ -54,10 +54,12 @@ class Session:
         config: LoopConfig,
         trace_dir: Path | str,
         replay_of: str | None = None,
+        skills: tuple[str, ...] = (),
     ) -> None:
         self.task = task
         self.config = config
         self.replay_of = replay_of
+        self.skills = skills
         self.session_id = new_ulid()
         self.trace_path = Path(trace_dir) / f"{self.session_id}.jsonl"
 
@@ -77,6 +79,7 @@ class Session:
                     context=self.config.context.model_dump(mode="json"),
                     regista_version=__version__,
                     replay_of=self.replay_of,
+                    skills=list(self.skills),
                 )
             )
             outcome = await run_loop(self.task, self.config, writer, on_event)

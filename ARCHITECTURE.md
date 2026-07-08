@@ -44,7 +44,7 @@ the contributor's map: pick a primitive, and you know which directory it lives i
 | 5 | **Durable state** | `regista/trace/` + `session.py` | What survives a crash: **the trace IS the durable state.** It holds the full history, so resuming a session is just replaying its trace and continuing — `Agent.resume(trace_path)`. | v0.1 (resume: v0.2, shipped) |
 | 6 | **Orchestration** | `regista/loop.py` | The turn engine: request → response → tool dispatch → repeat. ~250 lines, readable top-to-bottom, owns no I/O of its own. | v0.1 |
 | 7 | **Subagents** | — | Child agents with isolated context, restricted policies, and budget carve-outs, linked in the parent's trace. | v0.3 |
-| 8 | **Skills & procedures** | — | Reusable bundles of instruction fragments + tools, loadable into an agent. | v0.3 |
+| 8 | **Skills & procedures** | `regista/skills.py` | Reusable bundles of instruction fragments + tools, loadable into an agent (`skills=[...]`); fragments become Instructions sections, tools join the registry, names recorded in `session.start`. | v0.3, shipped |
 | 9 | **Verification & observability** | `regista/trace/` + `regista/policy/` + `regista/evals.py` | Whether it behaved: the event log, deterministic replay, OTel export; the permission gate (Allow/Deny/Ask) consulted before every tool execution; and the eval runner (outcome + trace-shape checks, replay-powered $0 CI). | v0.1 (eval runner: v0.2, shipped) |
 
 ### Boundary rules

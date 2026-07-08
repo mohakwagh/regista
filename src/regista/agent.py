@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from regista.pricing import ModelPrice
     from regista.providers.base import Provider
     from regista.session import RunResult
+    from regista.skills import Skill
     from regista.streaming import StreamEvent
     from regista.tools import Tool
 
@@ -45,6 +46,7 @@ class Agent:
         provider: Provider,
         instructions: str | Instructions,
         tools: list[Tool] | None = None,
+        skills: list[Skill] | None = None,
         policy: PermissionPolicy | None = None,
         ask_handler: AskHandler | None = None,
         trace_dir: Path | str = "./.regista/traces",
@@ -58,10 +60,16 @@ class Agent:
         if max_turns < 1:
             raise ConfigurationError(f"max_turns must be >= 1, got {max_turns}")
         self.instructions = Instructions.coerce(instructions)
+        self.skill_names = tuple(s.name for s in skills or [])
+        for skill in skills or []:
+            self.instructions = self.instructions.with_section(
+                f"Skill: {skill.name}", skill.instructions
+            )
+        all_tools = [*(tools or []), *(t for s in skills or [] for t in s.tools)]
         self.trace_dir = trace_dir
         self._config = LoopConfig(
             provider=provider,
-            registry=ToolRegistry(tools),
+            registry=ToolRegistry(all_tools),
             policy=policy if policy is not None else allow_all(),
             ask_handler=ask_handler,
             system=self.instructions.render(),
@@ -75,7 +83,7 @@ class Agent:
 
     async def run(self, task: str) -> RunResult:
         """Run one task to completion in a fresh traced session."""
-        return await Session(task, self._config, self.trace_dir).run()
+        return await Session(task, self._config, self.trace_dir, skills=self.skill_names).run()
 
     async def resume(self, trace_path: Path | str) -> RunResult:
         """Continue an interrupted session from its trace.
@@ -104,7 +112,7 @@ class Agent:
         happened.
         """
         queue: asyncio.Queue[StreamEvent | None] = asyncio.Queue()
-        session = Session(task, self._config, self.trace_dir)
+        session = Session(task, self._config, self.trace_dir, skills=self.skill_names)
 
         async def pump() -> RunResult:
             try:

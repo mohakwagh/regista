@@ -11,6 +11,7 @@ from regista.context import ContextConfig
 from regista.instructions import Instructions
 from regista.replay import replay
 from regista.session import RunResult, Session
+from regista.skills import Skill
 from regista.streaming import (
     RunCompleted,
     StreamEvent,
@@ -31,6 +32,7 @@ __all__ = [
     "RunCompleted",
     "RunResult",
     "Session",
+    "Skill",
     "StreamEvent",
     "TextDelta",
     "ThinkingDelta",

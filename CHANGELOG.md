@@ -6,7 +6,11 @@ All notable changes to regista are documented here. The format follows
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- **Skills** (`regista.skills.Skill`, exported at top level): named instruction fragment +
+  tool bundle, loaded via `Agent(skills=[...])`. Fragments render as `Skill: {name}`
+  Instructions sections, tools join the registry (collisions fail fast), and skill names
+  are recorded in `session.start` — skilled sessions replay unchanged.
 
 ## [0.2.0] — 2026-07-07
 

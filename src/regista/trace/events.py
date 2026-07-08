@@ -65,6 +65,8 @@ class SessionStart(_Event):
     """ContextConfig dump — replay needs it to compact at the same points."""
     regista_version: str
     replay_of: str | None = None
+    skills: list[str] = []
+    """Provenance only — the fragments/tools are already in instructions/tool_schemas."""
 
 
 class LlmRequest(_Event):

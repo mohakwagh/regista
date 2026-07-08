@@ -45,6 +45,7 @@ nav:
   - Concepts:
       - The nine primitives: concepts/primitives.md
       - Instructions: concepts/instructions.md
+      - Skills: concepts/skills.md
       - Tools: concepts/tools.md
       - Execution environment: concepts/environment.md
       - Policy (the permission gate): concepts/policy.md
