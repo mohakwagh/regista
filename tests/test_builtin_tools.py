@@ -94,6 +94,17 @@ async def test_search_files_reports_path_line_text(
     assert "no matches" in missing.content
 
 
+async def test_search_files_can_match_case_insensitively(
+    registry: ToolRegistry, env: LocalEnvironment
+) -> None:
+    await env.write_file("src/a.py", "TODO: fix this\n")
+    result = await registry.execute(
+        "search_files",
+        {"pattern": r"todo", "glob": "**/*.py", "case_insensitive": True},
+    )
+    assert result.content == "src/a.py:1: TODO: fix this"
+
+
 async def test_shell_formats_output(registry: ToolRegistry) -> None:
     result = await registry.execute("shell", {"command": "echo out && echo err >&2 && exit 4"})
     assert "exit code: 4" in result.content
