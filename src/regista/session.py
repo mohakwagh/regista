@@ -11,6 +11,7 @@ swapped, linked to the original via ``replay_of``.
 from __future__ import annotations
 
 import time
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -28,6 +29,12 @@ if TYPE_CHECKING:
     from regista.loop import LoopConfig, StopReason
     from regista.streaming import StreamEvent
     from regista.types import Usage
+
+
+# The session id of the run currently executing in this async context.
+# A subagent's Session is constructed inside the parent's tool dispatch, so it
+# sees the parent's id here — that one read is the whole trace-linkage story.
+_current_session_id: ContextVar[str | None] = ContextVar("regista_session_id", default=None)
 
 
 @dataclass(frozen=True)
@@ -61,6 +68,7 @@ class Session:
         self.replay_of = replay_of
         self.skills = skills
         self.session_id = new_ulid()
+        self.parent_session_id = _current_session_id.get()
         self.trace_path = Path(trace_dir) / f"{self.session_id}.jsonl"
 
     async def run(self, on_event: Callable[[StreamEvent], None] | None = None) -> RunResult:
@@ -80,9 +88,14 @@ class Session:
                     regista_version=__version__,
                     replay_of=self.replay_of,
                     skills=list(self.skills),
+                    parent_session_id=self.parent_session_id,
                 )
             )
-            outcome = await run_loop(self.task, self.config, writer, on_event)
+            token = _current_session_id.set(self.session_id)
+            try:
+                outcome = await run_loop(self.task, self.config, writer, on_event)
+            finally:
+                _current_session_id.reset(token)
             writer.emit(
                 ev.SessionEnd(
                     stop_reason=outcome.stop_reason,

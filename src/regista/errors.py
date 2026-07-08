@@ -40,6 +40,15 @@ class ToolError(RegistaError):
     """
 
 
+class SubagentError(RegistaError):
+    """A subagent run ended in an error outcome.
+
+    Raised inside the wrapping tool so the registry converts it to
+    ``tool_result(is_error=True)`` — the parent model sees the failure as
+    data and can adapt, retry, or route around it.
+    """
+
+
 class WorkspaceViolation(RegistaError):
     """A path or command tried to act outside the environment's workspace root.
 

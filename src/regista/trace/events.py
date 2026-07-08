@@ -67,6 +67,8 @@ class SessionStart(_Event):
     replay_of: str | None = None
     skills: list[str] = []
     """Provenance only — the fragments/tools are already in instructions/tool_schemas."""
+    parent_session_id: str | None = None
+    """Set when this session ran as a subagent inside the named parent session."""
 
 
 class LlmRequest(_Event):

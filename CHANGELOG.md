@@ -7,6 +7,11 @@ All notable changes to regista are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Subagents** (`Agent.as_tool(name=..., description=...)`): expose an agent as a tool
+  of another agent. The child runs each delegated task in a fresh session — isolated
+  context, its own policy and budgets — and writes its own trace tagged
+  `parent_session_id` (nesting supported). Parent replays are hermetic (the child is
+  never re-run); child error outcomes surface as `SubagentError` error-data.
 - **Skills** (`regista.skills.Skill`, exported at top level): named instruction fragment +
   tool bundle, loaded via `Agent(skills=[...])`. Fragments render as `Skill: {name}`
   Instructions sections, tools join the registry (collisions fail fast), and skill names

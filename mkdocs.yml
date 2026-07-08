@@ -54,6 +54,7 @@ nav:
       - The trace: concepts/trace.md
       - Deterministic replay: concepts/replay.md
       - Evals (regression runner): concepts/evals.md
+      - Subagents: concepts/subagents.md
       - Providers: concepts/providers.md
       - Streaming: concepts/streaming.md
   - API reference: reference.md

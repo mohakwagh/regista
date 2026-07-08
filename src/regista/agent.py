@@ -11,14 +11,15 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 from regista.context import ContextConfig
-from regista.errors import ConfigurationError
+from regista.errors import ConfigurationError, SubagentError
 from regista.instructions import Instructions
 from regista.loop import LoopConfig
 from regista.policy import allow_all
 from regista.replay import resume_from_trace
 from regista.session import Session
 from regista.streaming import RunCompleted
-from regista.tools import ToolRegistry
+from regista.tools import Tool, ToolRegistry
+from regista.types import ToolSpec
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -30,7 +31,6 @@ if TYPE_CHECKING:
     from regista.session import RunResult
     from regista.skills import Skill
     from regista.streaming import StreamEvent
-    from regista.tools import Tool
 
 
 class Agent:
@@ -132,6 +132,40 @@ class Agent:
             if not runner.done():
                 runner.cancel()
                 await asyncio.gather(runner, return_exceptions=True)
+
+    def as_tool(self, *, name: str, description: str, parallel_safe: bool = False) -> Tool:
+        """Expose this agent as a tool of another agent — a subagent.
+
+        The parent model calls ``{name}(task=...)``; this agent runs the task
+        in its own fresh session — isolated context, its own policy, its own
+        ``max_turns``/``max_cost_usd`` (the budget carve-out) — and the final
+        output becomes the tool result. The child writes its own trace, tagged
+        ``parent_session_id``, while the parent's trace records the delegation
+        like any tool call — so a parent replay is hermetic (the child is
+        never re-run) and the child's trace replays independently.
+
+        A child run that ends in an error outcome raises `SubagentError`,
+        which the registry hands to the parent model as error-data.
+        """
+
+        async def run_subagent(task: str) -> str:
+            result = await self.run(task)
+            if result.error is not None:
+                raise SubagentError(f"subagent '{name}' failed: {result.error}")
+            return result.output
+
+        spec = ToolSpec(
+            name=name,
+            description=description,
+            input_schema={
+                "type": "object",
+                "properties": {"task": {"type": "string", "description": "The task to delegate."}},
+                "required": ["task"],
+                "additionalProperties": False,
+            },
+            parallel_safe=parallel_safe,
+        )
+        return Tool(run_subagent, spec)
 
     def run_sync(self, task: str) -> RunResult:
         """``run()`` for synchronous callers (scripts, notebooks without top-level await)."""
