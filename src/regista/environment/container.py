@@ -35,7 +35,10 @@ if TYPE_CHECKING:
     from pathlib import Path
     from types import TracebackType
 
-_TIMEOUT_EXIT_CODE = 124  # what the `timeout` binary reports
+# `timeout -s KILL` yields 137 (128+SIGKILL) on both GNU coreutils and busybox;
+# GNU also documents 124 for its non-KILL path. Checked against the observed
+# duration so a command legitimately exiting with these codes isn't misread.
+_TIMEOUT_EXIT_CODES = frozenset({124, 137})
 
 
 async def _docker(*args: str, timeout_s: float = 60.0) -> tuple[int | None, str, str]:
@@ -129,6 +132,8 @@ class ContainerEnvironment(LocalEnvironment):
             self.container_workdir,
             self._container_id,
             "timeout",
+            "-s",
+            "KILL",
             f"{timeout_s:g}",
             "sh",
             "-c",
@@ -136,7 +141,9 @@ class ContainerEnvironment(LocalEnvironment):
             timeout_s=timeout_s + 10.0,  # backstop: in-container timeout fires first
         )
         duration_ms = int((time.monotonic() - started) * 1000)
-        timed_out = code is None or code == _TIMEOUT_EXIT_CODE
+        timed_out = code is None or (
+            code in _TIMEOUT_EXIT_CODES and duration_ms >= timeout_s * 1000
+        )
         return ExecResult(
             exit_code=code,
             stdout=stdout,
