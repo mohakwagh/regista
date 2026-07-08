@@ -6,6 +6,10 @@ All notable changes to regista are documented here. The format follows
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.3.0] — 2026-07-08
+
 ### Added
 - **`ContainerEnvironment`** (`regista.environment`): commands run inside a Docker
   container (docker CLI, no SDK dependency) with none of the host's environment
