@@ -23,3 +23,7 @@ htmlcov/
 .idea/
 .vscode/
 .DS_Store
+
+# local secrets (never commit)
+.env.local
+.env
