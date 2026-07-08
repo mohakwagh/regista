@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "regista-harness"
-version = "0.2.0"
+version = "0.3.0.dev0"
 description = "Observability-first agent harness: every session is a structured, deterministically replayable trace."
 readme = "README.md"
 license = "MIT"
