@@ -15,6 +15,7 @@ from regista.errors import ConfigurationError
 from regista.instructions import Instructions
 from regista.loop import LoopConfig
 from regista.policy import allow_all
+from regista.replay import resume_from_trace
 from regista.session import Session
 from regista.streaming import RunCompleted
 from regista.tools import ToolRegistry
@@ -75,6 +76,23 @@ class Agent:
     async def run(self, task: str) -> RunResult:
         """Run one task to completion in a fresh traced session."""
         return await Session(task, self._config, self.trace_dir).run()
+
+    async def resume(self, trace_path: Path | str) -> RunResult:
+        """Continue an interrupted session from its trace.
+
+        The recorded prefix replays for $0 — every request hash-verified,
+        recorded tool results served without re-running their effects — and
+        the first request the recording can't answer falls through to this
+        agent's live provider. From there new tool calls execute for real,
+        gated by this agent's policy. A tool call the crash cut short (no
+        recorded result) is re-executed.
+
+        Assumes this Agent is configured like the recorded run; any
+        difference makes the first request diverge, which just means the
+        whole task re-runs live. Writes a new trace linked to the original
+        via ``replay_of``.
+        """
+        return await resume_from_trace(trace_path, self._config, self.trace_dir)
 
     async def stream(self, task: str) -> AsyncIterator[StreamEvent]:
         """Run one task, yielding events as they happen.

@@ -6,7 +6,13 @@ All notable changes to regista are documented here. The format follows
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- **`Agent.resume(trace_path)`**: continue an interrupted session from its trace. The
+  recorded prefix replays for $0 (hash-verified, recorded tool results served — effects
+  never re-run); the first request the recording can't answer falls through to the
+  agent's live provider, and new tool calls execute for real, gated by the agent's
+  policy. A tool call the crash cut short is re-executed. The resumed session's trace
+  links to the original via `replay_of`.
 
 ## [0.1.0] — 2026-07-05
 

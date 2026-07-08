@@ -19,12 +19,13 @@ Faithfulness notes (v0.1):
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from regista.context import ContextConfig
 from regista.loop import LoopConfig
-from regista.policy import Allow, PermissionDecision
+from regista.policy import Allow, PermissionDecision, policy_name
 from regista.providers.base import ModelRequest
 from regista.providers.replay import ReplayMode, ReplayProvider
 from regista.session import Session
@@ -33,7 +34,9 @@ from regista.trace.reader import Trace
 from regista.types import ToolSpec
 
 if TYPE_CHECKING:
-    from regista.policy import PermissionRequest
+    from collections.abc import Awaitable
+
+    from regista.policy import PermissionPolicy, PermissionRequest
     from regista.providers.base import Provider
     from regista.session import RunResult
     from regista.trace.events import ToolResult
@@ -121,4 +124,61 @@ async def replay(
     session = Session(
         start.task, config, trace_dir or trace_path.parent, replay_of=start.session_id
     )
+    return await session.run()
+
+
+class _ResumeToolRegistry(ToolRegistry):
+    """Recorded calls are served from the recording — their effects already
+    happened once; anything new executes against the live tools."""
+
+    def __init__(self, live: ToolRegistry, results: dict[str, ToolResult]) -> None:
+        super().__init__([live.get(spec.name) for spec in live.specs()])
+        self._results = results
+
+    async def execute(
+        self, name: str, input: dict[str, Any], *, tool_use_id: str = ""
+    ) -> ToolExecution:
+        recorded = self._results.get(tool_use_id)
+        if recorded is None:
+            return await super().execute(name, input, tool_use_id=tool_use_id)
+        return ToolExecution(
+            content=recorded.content,
+            is_error=recorded.is_error,
+            duration_ms=recorded.duration_ms,
+        )
+
+
+def _resume_policy(inner: PermissionPolicy, recorded_ids: frozenset[str]) -> PermissionPolicy:
+    """Recorded calls were gated in the original run (and replay through their
+    recorded results either way); only new calls face the real policy."""
+
+    def policy(request: PermissionRequest) -> PermissionDecision | Awaitable[PermissionDecision]:
+        if request.tool_use_id in recorded_ids:
+            return Allow()
+        return inner(request)
+
+    policy.policy_name = f"resume({policy_name(inner)})"  # type: ignore[attr-defined]
+    return policy
+
+
+async def resume_from_trace(
+    trace_path: Path | str, config: LoopConfig, trace_dir: Path | str
+) -> RunResult:
+    """The engine behind ``Agent.resume()`` — see that method for the story.
+
+    Three swaps on the live config, all keyed on what the trace contains:
+    the provider replays in hybrid mode (recorded answers at $0, live from
+    the first request the recording can't answer), recorded tool calls serve
+    their recorded results while new ones execute for real, and only new
+    calls are gated by the real policy.
+    """
+    trace = Trace.load(trace_path)
+    results = trace.tool_results()
+    resumed = replace(
+        config,
+        provider=ReplayProvider(trace, mode="hybrid", fallback=config.provider),
+        registry=_ResumeToolRegistry(config.registry, results),
+        policy=_resume_policy(config.policy, frozenset(results)),
+    )
+    session = Session(trace.start.task, resumed, trace_dir, replay_of=trace.start.session_id)
     return await session.run()

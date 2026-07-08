@@ -12,8 +12,8 @@ Divergence modes:
 - ``warn``    — emit ReplayDivergenceWarning, keep serving positionally
   (debugging: "show me what it did anyway")
 - ``hybrid``  — fall through to a real ``fallback`` provider from the first
-  divergence (or when the recording runs out) and stay live; the basis of
-  Session.resume in v0.2
+  divergence (or when the recording runs out) and stay live; the engine
+  behind ``Agent.resume()``
 """
 
 from __future__ import annotations

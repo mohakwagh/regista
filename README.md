@@ -19,9 +19,10 @@ zero API calls and zero cost.
 pip install regista-harness        # the import name is `regista`
 ```
 
-**Status: v0.1 released.** Loop, tools, environment, policy, Anthropic + OpenAI-compatible
-providers, streaming, compaction, deterministic replay, OTel export — 140+ tests, strict
-mypy, every subsystem traced. Next up (v0.2): `Session.resume`, MCP client, eval runner.
+**Status: v0.1 released, v0.2 in progress.** Loop, tools, environment, policy, Anthropic +
+OpenAI-compatible providers, streaming, compaction, deterministic replay, OTel export —
+140+ tests, strict mypy, every subsystem traced. `Agent.resume` has landed on main; MCP
+client and the eval runner are next.
 
 ## Why another harness?
 
@@ -97,7 +98,9 @@ request.system: recorded 'You are a greeter.' != live 'You are a greeter. Always
 ```
 
 `mode="warn"` keeps serving positionally for time-travel debugging; `mode="hybrid"` falls
-through to a live provider mid-session — which is how a crashed trace resumes.
+through to a live provider mid-session. `agent.resume(trace_path)` packages that: the
+recorded prefix replays for $0 (tool effects never re-run), and the session continues live
+from wherever the crash left it.
 
 ## Zero-cost testing
 
@@ -139,7 +142,7 @@ ANTHROPIC_API_KEY=... uv run python examples/04_real_provider.py   # ~1 cent
 
 ## Roadmap
 
-- **v0.2** — eval/regression runner (replay-powered $0 CI) · MCP client · `Session.resume()`
+- **v0.2** — `Agent.resume()` (on main) · eval/regression runner (replay-powered $0 CI) · MCP client
 - **v0.3** — subagents · Skills · `ContainerEnvironment`
 
 ## Safety, honestly

@@ -57,7 +57,31 @@ original's — the conversation rebuilt byte-for-byte from the log.
 - **Time-travel debugging** — re-run a failed production session locally with a debugger
   attached, without re-paying or re-triggering side effects.
 - **Resume** — `hybrid` mode replayed past the end of a crashed recording *is* resumption;
-  `Session.resume()` (v0.2) is a thin wrapper over it.
+  `agent.resume()` packages it (below).
 
 Replays write their own trace, tagged `replay_of: <original session_id>`, so a replay is
 itself inspectable and diffable.
+
+## Resume
+
+`Agent.resume(trace_path)` continues an interrupted session:
+
+```python
+result = await agent.resume(".regista/traces/01J....jsonl")
+```
+
+Three swaps on the agent's live config, all keyed on what the trace contains:
+
+- the provider replays in **hybrid** mode — the recorded prefix is served for $0
+  (hash-verified), and the first request the recording can't answer falls through to the
+  agent's real provider;
+- **recorded tool calls serve their recorded results** (their effects already happened
+  once — a resume never re-runs them), while new calls execute for real. A call the crash
+  cut short (no recorded result) is re-executed;
+- recorded calls bypass the policy (they were gated in the original run); **new calls face
+  the agent's real policy**.
+
+Resume assumes the agent is configured like the recorded run — same instructions, tools,
+params. Any difference makes the first request diverge, which simply means the whole task
+re-runs live; the hash chain makes the fidelity self-verifying either way. The resumed
+session writes its own trace, linked via `replay_of`.

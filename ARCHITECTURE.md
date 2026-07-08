@@ -41,7 +41,7 @@ the contributor's map: pick a primitive, and you know which directory it lives i
 | 2 | **Context management** | `regista/context/` | What the model remembers: token/cost budgets from provider-reported usage; compaction (summarizing old turns) when the window fills. | v0.1 |
 | 3 | **Tool interface** | `regista/tools/` | What the model can ask for: `@tool` turns a typed Python function into a JSON-Schema tool; the registry dispatches calls. Defines **what** a capability is, never **where** it runs. | v0.1 (MCP client: v0.2) |
 | 4 | **Execution environment** | `regista/environment/` | Where effects happen: file ops and process execution behind one protocol, pinned to a workspace. `LocalEnvironment` today; a container backend is a drop-in, not a rewrite. | v0.1 |
-| 5 | **Durable state** | `regista/trace/` + `session.py` | What survives a crash: **the trace IS the durable state.** It holds the full history, so resuming a session is just replaying its trace and continuing. | v0.1 (resume: v0.2) |
+| 5 | **Durable state** | `regista/trace/` + `session.py` | What survives a crash: **the trace IS the durable state.** It holds the full history, so resuming a session is just replaying its trace and continuing — `Agent.resume(trace_path)`. | v0.1 (resume: v0.2, shipped) |
 | 6 | **Orchestration** | `regista/loop.py` | The turn engine: request → response → tool dispatch → repeat. ~250 lines, readable top-to-bottom, owns no I/O of its own. | v0.1 |
 | 7 | **Subagents** | — | Child agents with isolated context, restricted policies, and budget carve-outs, linked in the parent's trace. | v0.3 |
 | 8 | **Skills & procedures** | — | Reusable bundles of instruction fragments + tools, loadable into an agent. | v0.3 |
@@ -219,7 +219,11 @@ What this buys you concretely:
   your agent's full loop forever without an API key. regista's own CI does exactly this.
 - **Time-travel debugging**: re-run a failed production session locally, with a debugger
   attached, without re-paying for tokens or re-triggering side effects.
-- **Resume** (v0.2): `hybrid` mode replayed to the end of a recording *is* resumption.
+- **Resume**: `Agent.resume(trace_path)` continues an interrupted session — `hybrid` mode
+  replayed to the end of the recording, with one twist on hermetic replay: recorded tool
+  calls serve their recorded results (effects are never re-run), while calls the recording
+  doesn't answer — including one a crash cut short — execute live, gated by the agent's
+  real policy.
 
 Replays write their own trace (tagged `replay_of: <original session_id>`), so a replay is
 itself inspectable and diffable against the original.
@@ -292,8 +296,8 @@ precisely so that it's a drop-in, not a rewrite. See SECURITY.md for the threat 
 
 - **v0.1** — everything marked v0.1 above: the loop, both providers, tools + environment +
   policy, budgets + compaction, trace + replay + OTel export.
-- **v0.2** — eval/regression runner (task suites with outcome and trace-shape assertions,
-  replay-powered $0 CI mode) · MCP client (any MCP server's tools join the registry) ·
-  `Session.resume()`.
+- **v0.2** — `Agent.resume()` (shipped) · eval/regression runner (task suites with outcome
+  and trace-shape assertions, replay-powered $0 CI mode) · MCP client (any MCP server's
+  tools join the registry).
 - **v0.3** — subagents · Skills · `ContainerEnvironment`.
 - **Later** — file checkpoints/rollback, cross-session memory.
