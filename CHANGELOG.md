@@ -7,6 +7,11 @@ All notable changes to regista are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Eval/regression runner** (`regista.evals`): `EvalSuite` judges tasks with checks over
+  outcome and trace shape (`output_contains`, `tool_never_called`, `max_cost_usd`, custom
+  functions, …). `run(agent)` live, `record(agent)` saves passing traces as fixtures,
+  `replay()` re-judges the fixtures at $0 with strict-replay divergence as the regression
+  signal.
 - **MCP client** (`regista.tools.mcp`, `[mcp]` extra): `MCPServer.stdio(...)` /
   `MCPServer.http(...)` connect to any Model Context Protocol server and wrap its tools
   as ordinary regista tools — same trace events, same policy gate, `prefix=` for

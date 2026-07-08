@@ -24,6 +24,10 @@ The public API, generated from docstrings.
 
 ::: regista.providers.replay.ReplayProvider
 
+## Evals
+
+::: regista.evals
+
 ## Policies
 
 ::: regista.policy.permissions

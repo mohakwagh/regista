@@ -19,10 +19,10 @@ zero API calls and zero cost.
 pip install regista-harness        # the import name is `regista`
 ```
 
-**Status: v0.1 released, v0.2 in progress.** Loop, tools, environment, policy, Anthropic +
-OpenAI-compatible providers, streaming, compaction, deterministic replay, OTel export —
-150+ tests, strict mypy, every subsystem traced. `Agent.resume` and the MCP client have
-landed on main; the eval runner is next.
+**Status: v0.1 released; v0.2 feature-complete on main.** Loop, tools, environment,
+policy, Anthropic + OpenAI-compatible providers, streaming, compaction, deterministic
+replay, OTel export — plus v0.2's `Agent.resume`, MCP client, and eval/regression runner.
+160+ tests, strict mypy, every subsystem traced.
 
 ## Why another harness?
 
@@ -118,6 +118,12 @@ provider = FakeProvider([
 ~90% of regista's own test suite runs on it — and your agent's tests can too. Committed
 traces replayed strictly in CI are your end-to-end tests, forever, for free.
 
+`regista.evals` packages that into a regression runner: an `EvalSuite` of tasks with
+checks on outcome *and* trace shape (`output_contains`, `tool_never_called("shell")`,
+`max_cost_usd(0.50)`, …). `suite.record(agent)` saves passing runs as fixtures;
+`suite.replay()` re-judges them in CI at $0, with any divergence from the recording
+failing the task.
+
 ## Architecture
 
 regista is organized around **nine harness primitives** — instructions, context management,
@@ -143,7 +149,7 @@ ANTHROPIC_API_KEY=... uv run python examples/04_real_provider.py   # ~1 cent
 
 ## Roadmap
 
-- **v0.2** — `Agent.resume()` (on main) · MCP client (on main) · eval/regression runner (replay-powered $0 CI)
+- **v0.2** — all on main: `Agent.resume()` · MCP client · eval/regression runner (replay-powered $0 CI)
 - **v0.3** — subagents · Skills · `ContainerEnvironment`
 
 ## Safety, honestly

@@ -45,7 +45,7 @@ the contributor's map: pick a primitive, and you know which directory it lives i
 | 6 | **Orchestration** | `regista/loop.py` | The turn engine: request → response → tool dispatch → repeat. ~250 lines, readable top-to-bottom, owns no I/O of its own. | v0.1 |
 | 7 | **Subagents** | — | Child agents with isolated context, restricted policies, and budget carve-outs, linked in the parent's trace. | v0.3 |
 | 8 | **Skills & procedures** | — | Reusable bundles of instruction fragments + tools, loadable into an agent. | v0.3 |
-| 9 | **Verification & observability** | `regista/trace/` + `regista/policy/` | Whether it behaved: the event log, deterministic replay, OTel export; and the permission gate (Allow/Deny/Ask) consulted before every tool execution. | v0.1 (eval runner: v0.2) |
+| 9 | **Verification & observability** | `regista/trace/` + `regista/policy/` + `regista/evals.py` | Whether it behaved: the event log, deterministic replay, OTel export; the permission gate (Allow/Deny/Ask) consulted before every tool execution; and the eval runner (outcome + trace-shape checks, replay-powered $0 CI). | v0.1 (eval runner: v0.2, shipped) |
 
 ### Boundary rules
 
@@ -107,6 +107,8 @@ core imports `cli/` (a reserved, empty namespace for a future CLI).
 - **`context/`** — the memory manager: budgets and compaction.
 - **`instructions.py`** — layered system-prompt construction.
 - **`loop.py`** — pure orchestration over all of the above; every step emits a trace event.
+- **`evals.py`** — the regression runner: task suites judged by checks over `RunResult` +
+  `Trace`; `run()` live, `record()` saves passing fixtures, `replay()` re-judges them at $0.
 - **`agent.py` / `session.py`** — the composition root users touch: `Agent` is reusable
   config; each `run()` creates a fresh `Session` with a fresh trace file.
 
@@ -297,8 +299,8 @@ precisely so that it's a drop-in, not a rewrite. See SECURITY.md for the threat 
 
 - **v0.1** — everything marked v0.1 above: the loop, both providers, tools + environment +
   policy, budgets + compaction, trace + replay + OTel export.
-- **v0.2** — `Agent.resume()` (shipped) · MCP client (shipped: `regista/tools/mcp.py`,
-  stdio + streamable HTTP, `[mcp]` extra) · eval/regression runner (task suites with
-  outcome and trace-shape assertions, replay-powered $0 CI mode).
+- **v0.2** — all shipped: `Agent.resume()` · MCP client (`regista/tools/mcp.py`, stdio +
+  streamable HTTP, `[mcp]` extra) · eval/regression runner (`regista/evals.py`, task
+  suites with outcome and trace-shape checks, replay-powered $0 CI mode).
 - **v0.3** — subagents · Skills · `ContainerEnvironment`.
 - **Later** — file checkpoints/rollback, cross-session memory.

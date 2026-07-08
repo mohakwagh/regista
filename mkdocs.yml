@@ -52,6 +52,7 @@ nav:
       - Context management: concepts/context.md
       - The trace: concepts/trace.md
       - Deterministic replay: concepts/replay.md
+      - Evals (regression runner): concepts/evals.md
       - Providers: concepts/providers.md
       - Streaming: concepts/streaming.md
   - API reference: reference.md
