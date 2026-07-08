@@ -2,6 +2,12 @@
 
 > The agent harness with a flight recorder.
 
+[![PyPI](https://img.shields.io/pypi/v/regista-harness)](https://pypi.org/project/regista-harness/)
+[![CI](https://github.com/mohakwagh/regista/actions/workflows/ci.yml/badge.svg)](https://github.com/mohakwagh/regista/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/pypi/pyversions/regista-harness)](https://pypi.org/project/regista-harness/)
+[![Docs](https://img.shields.io/badge/docs-mkdocs--material-blue)](https://mohakwagh.github.io/regista/)
+[![License](https://img.shields.io/pypi/l/regista-harness)](LICENSE)
+
 **regista** is an observability-first agent harness for Python: the runtime layer that turns
 a stateless LLM API into an agent that can act. Every session is recorded as a structured,
 append-only trace — complete enough to **deterministically replay** the entire session with
@@ -9,9 +15,13 @@ zero API calls and zero cost.
 
 > *regista* (Italian): the deep-lying playmaker who directs the game. Also: "director."
 
-**Status: pre-release.** The v0.1 core is feature-complete — loop, tools, environment,
-policy, both providers, streaming, compaction, replay, OTel export — with 140+ tests, strict
-mypy, and every subsystem traced. Docs site and the PyPI release are landing next.
+```bash
+pip install regista-harness        # the import name is `regista`
+```
+
+**Status: v0.1 released.** Loop, tools, environment, policy, Anthropic + OpenAI-compatible
+providers, streaming, compaction, deterministic replay, OTel export — 140+ tests, strict
+mypy, every subsystem traced. Next up (v0.2): `Session.resume`, MCP client, eval runner.
 
 ## Why another harness?
 

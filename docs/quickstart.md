@@ -2,15 +2,17 @@
 
 ## Install
 
-Until the PyPI release lands:
+```bash
+pip install regista-harness
+```
+
+The distribution is **`regista-harness`**; the import name is `regista`. To hack on the
+examples, work from source instead:
 
 ```bash
 git clone https://github.com/mohakwagh/regista && cd regista
 uv sync
 ```
-
-Once released, the distribution is **`regista-harness`** (`pip install regista-harness`);
-the import name stays `regista`.
 
 Runtime dependencies are just pydantic v2, httpx, and the anthropic SDK. Python 3.10+.
 
