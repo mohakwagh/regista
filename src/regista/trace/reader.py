@@ -37,6 +37,24 @@ class TraceSummary:
     stop_reason: str | None
     replay_of: str | None
 
+    def __str__(self) -> str:
+        cost = f"${self.cost_usd:.6f}" if self.cost_usd is not None else "unknown"
+        stop_reason = self.stop_reason or "unknown"
+        replay_of = self.replay_of or "-"
+        return "\n".join(
+            [
+                f"session_id: {self.session_id}",
+                f"task: {self.task}",
+                f"model: {self.model}",
+                f"turns: {self.turns}",
+                f"events: {self.events}",
+                f"tool_calls: {self.tool_calls}",
+                f"cost_usd: {cost}",
+                f"stop_reason: {stop_reason}",
+                f"replay_of: {replay_of}",
+            ]
+        )
+
 
 class Trace:
     """An in-memory view of one session's JSONL trace file."""
