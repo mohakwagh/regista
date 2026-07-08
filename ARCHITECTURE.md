@@ -40,7 +40,7 @@ the contributor's map: pick a primitive, and you know which directory it lives i
 | 1 | **Instructions** | `regista/instructions.py` | What the agent is told: a layered system prompt (base + sections + task), rendered once per session and recorded in the trace. | v0.1 |
 | 2 | **Context management** | `regista/context/` | What the model remembers: token/cost budgets from provider-reported usage; compaction (summarizing old turns) when the window fills. | v0.1 |
 | 3 | **Tool interface** | `regista/tools/` | What the model can ask for: `@tool` turns a typed Python function into a JSON-Schema tool; the registry dispatches calls; `MCPServer` lets any MCP server's tools join the registry. Defines **what** a capability is, never **where** it runs. | v0.1 (MCP client: v0.2, shipped) |
-| 4 | **Execution environment** | `regista/environment/` | Where effects happen: file ops and process execution behind one protocol, pinned to a workspace. `LocalEnvironment` today; a container backend is a drop-in, not a rewrite. | v0.1 |
+| 4 | **Execution environment** | `regista/environment/` | Where effects happen: file ops and process execution behind one protocol, pinned to a workspace. `LocalEnvironment` runs on the host; `ContainerEnvironment` runs commands in Docker with the workspace bind-mounted — the promised drop-in. | v0.1 (container: v0.3, shipped) |
 | 5 | **Durable state** | `regista/trace/` + `session.py` | What survives a crash: **the trace IS the durable state.** It holds the full history, so resuming a session is just replaying its trace and continuing — `Agent.resume(trace_path)`. | v0.1 (resume: v0.2, shipped) |
 | 6 | **Orchestration** | `regista/loop.py` | The turn engine: request → response → tool dispatch → repeat. ~250 lines, readable top-to-bottom, owns no I/O of its own. | v0.1 |
 | 7 | **Subagents** | `agent.py` (`as_tool`) | Child agents with isolated context, restricted policies, and budget carve-outs. `child.as_tool(name=...)` makes delegation an ordinary tool call; the child's own trace is tagged `parent_session_id`. | v0.3, shipped |
@@ -102,7 +102,8 @@ core imports `cli/` (a reserved, empty namespace for a future CLI).
 - **`tools/`** — capability registry: schema generation from Python signatures, dispatch,
   built-in tools (files/shell/search/fetch), MCP client (`mcp.py`, `[mcp]` extra — any MCP
   server's tools wrap as ordinary registry entries).
-- **`environment/`** — effect boundary: file ops + process exec behind a protocol, workspace-scoped.
+- **`environment/`** — effect boundary: file ops + process exec behind a protocol,
+  workspace-scoped; `local` (host) and `container` (docker-exec'd commands) backends.
 - **`policy/`** — the gate: a pure function `(PermissionRequest) → Allow | Deny | Ask`.
 - **`context/`** — the memory manager: budgets and compaction.
 - **`instructions.py`** — layered system-prompt construction.
@@ -302,5 +303,7 @@ precisely so that it's a drop-in, not a rewrite. See SECURITY.md for the threat 
 - **v0.2** — all shipped: `Agent.resume()` · MCP client (`regista/tools/mcp.py`, stdio +
   streamable HTTP, `[mcp]` extra) · eval/regression runner (`regista/evals.py`, task
   suites with outcome and trace-shape checks, replay-powered $0 CI mode).
-- **v0.3** — subagents · Skills · `ContainerEnvironment`.
-- **Later** — file checkpoints/rollback, cross-session memory.
+- **v0.3** — all shipped: subagents (`Agent.as_tool`, linked traces) · Skills
+  (`regista/skills.py`) · `ContainerEnvironment` (`regista/environment/container.py`).
+- **Later** — file checkpoints/rollback, cross-session memory, parent-visible subagent
+  budgets, subagent event streaming.

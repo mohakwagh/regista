@@ -19,10 +19,11 @@ zero API calls and zero cost.
 pip install regista-harness        # the import name is `regista`
 ```
 
-**Status: v0.1 released; v0.2 feature-complete on main.** Loop, tools, environment,
+**Status: v0.2 released; v0.3 feature-complete on main.** Loop, tools, environment,
 policy, Anthropic + OpenAI-compatible providers, streaming, compaction, deterministic
-replay, OTel export — plus v0.2's `Agent.resume`, MCP client, and eval/regression runner.
-160+ tests, strict mypy, every subsystem traced.
+replay, OTel export, `Agent.resume`, MCP client, eval/regression runner — plus v0.3's
+subagents, Skills, and `ContainerEnvironment`. 180+ tests, strict mypy, every subsystem
+traced.
 
 ## Why another harness?
 
@@ -150,15 +151,15 @@ ANTHROPIC_API_KEY=... uv run python examples/04_real_provider.py   # ~1 cent
 ## Roadmap
 
 - **v0.2** — all on main: `Agent.resume()` · MCP client · eval/regression runner (replay-powered $0 CI)
-- **v0.3** — subagents · Skills · `ContainerEnvironment`
+- **v0.3** — all on main: subagents (`Agent.as_tool`) · Skills · `ContainerEnvironment`
 
 ## Safety, honestly
 
 The permission layer is a **policy gate, not a sandbox**: an allowed shell command can do
 anything your user account can. The environment scopes paths (symlinks included), strips
 secrets from subprocess env, and enforces timeouts — and every decision is in the trace.
-For untrusted tasks, run the process in a container. [SECURITY.md](SECURITY.md) has the
-full threat model.
+For untrusted tasks, `ContainerEnvironment` runs commands inside Docker with a one-line
+swap. [SECURITY.md](SECURITY.md) has the full threat model.
 
 ## License
 

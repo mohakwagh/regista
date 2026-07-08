@@ -20,6 +20,12 @@ The public API, generated from docstrings.
 
 ::: regista.skills.Skill
 
+## Environment
+
+::: regista.environment.LocalEnvironment
+
+::: regista.environment.ContainerEnvironment
+
 ## Replay
 
 ::: regista.replay.replay

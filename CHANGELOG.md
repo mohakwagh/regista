@@ -7,6 +7,10 @@ All notable changes to regista are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **`ContainerEnvironment`** (`regista.environment`): commands run inside a Docker
+  container (docker CLI, no SDK dependency) with none of the host's environment
+  variables; file operations stay host-side, workspace-pinned, shared via bind mount.
+  Async context manager; in-container `timeout` + client-side kill as backstop.
 - **Subagents** (`Agent.as_tool(name=..., description=...)`): expose an agent as a tool
   of another agent. The child runs each delegated task in a fresh session — isolated
   context, its own policy and budgets — and writes its own trace tagged

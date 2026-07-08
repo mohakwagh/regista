@@ -10,8 +10,11 @@ regista's permission layer is a **policy gate, not a sandbox**:
 - Model outputs are untrusted input. A prompt-injected agent will attempt tool calls you did
   not intend; the policy gate is your control point, so prefer `Ask`-by-default policies for
   anything with side effects.
-- For untrusted or high-risk tasks, run the whole process inside a container. A
-  `ContainerEnvironment` making this a one-line change is on the roadmap.
+- For untrusted or high-risk tasks, use `ContainerEnvironment`: commands run inside a
+  Docker container with none of your host environment variables, and only the bind-mounted
+  workspace is shared. Note the file boundary honestly — bind-mounted files are shared by
+  design, and container escape is out of scope for this threat model (Docker is the
+  isolation layer, not regista).
 
 Every tool call and permission decision is recorded in the session trace, so there is always
 an audit log. Traces can contain sensitive data (prompts, file contents, command output) —
