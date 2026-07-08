@@ -6,6 +6,10 @@ All notable changes to regista are documented here. The format follows
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] — 2026-07-07
+
 ### Added
 - **Eval/regression runner** (`regista.evals`): `EvalSuite` judges tasks with checks over
   outcome and trace shape (`output_contains`, `tool_never_called`, `max_cost_usd`, custom
@@ -17,6 +21,10 @@ All notable changes to regista are documented here. The format follows
   as ordinary regista tools — same trace events, same policy gate, `prefix=` for
   namespacing, server failures surfaced as error-data. Sessions that used MCP tools
   replay hermetically without the server.
+- A committed real gpt-4o-mini trace fixture (`tests/fixtures/openai_add.jsonl`) that CI
+  strict-replays and re-judges via the eval runner on every run — real-provider-data
+  regression coverage at $0. Per-provider live smoke tests (Anthropic / OpenAI keys
+  gated independently).
 - **`Agent.resume(trace_path)`**: continue an interrupted session from its trace. The
   recorded prefix replays for $0 (hash-verified, recorded tool results served — effects
   never re-run); the first request the recording can't answer falls through to the
