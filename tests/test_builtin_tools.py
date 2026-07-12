@@ -31,6 +31,7 @@ def test_toolset_shape(registry: ToolRegistry) -> None:
     assert set(specs) == {
         "read_file",
         "write_file",
+        "edit_file",
         "list_dir",
         "glob",
         "search_files",
@@ -40,6 +41,7 @@ def test_toolset_shape(registry: ToolRegistry) -> None:
     # read-only tools may run concurrently; mutating ones may not
     assert {name for name, spec in specs.items() if not spec.parallel_safe} == {
         "write_file",
+        "edit_file",
         "shell",
     }
     assert all(spec.description for spec in specs.values())
@@ -51,6 +53,55 @@ async def test_write_then_read(registry: ToolRegistry, env: LocalEnvironment) ->
     assert "a.txt" in written.content
     read = await registry.execute("read_file", {"path": "a.txt"})
     assert read.content == "hello"
+
+
+async def test_edit_file_replaces_one_exact_match(
+    registry: ToolRegistry, env: LocalEnvironment
+) -> None:
+    await env.write_file("a.txt", "hello world")
+    edited = await registry.execute(
+        "edit_file",
+        {"path": "a.txt", "old_string": "world", "new_string": "there"},
+    )
+    assert not edited.is_error
+    assert edited.content == "Edited a.txt"
+    assert (await env.read_file("a.txt")) == "hello there"
+
+
+async def test_edit_file_errors_when_string_is_missing(
+    registry: ToolRegistry, env: LocalEnvironment
+) -> None:
+    await env.write_file("a.txt", "hello world")
+    result = await registry.execute(
+        "edit_file",
+        {"path": "a.txt", "old_string": "missing", "new_string": "there"},
+    )
+    assert result.is_error
+    assert "was not found" in result.content
+
+
+async def test_edit_file_errors_when_string_is_ambiguous(
+    registry: ToolRegistry, env: LocalEnvironment
+) -> None:
+    await env.write_file("a.txt", "hello world\nhello world\n")
+    result = await registry.execute(
+        "edit_file",
+        {"path": "a.txt", "old_string": "hello world", "new_string": "hello there"},
+    )
+    assert result.is_error
+    assert "requires exactly one match" in result.content
+
+
+async def test_edit_file_preserves_workspace_scoping(
+    registry: ToolRegistry, env: LocalEnvironment
+) -> None:
+    await env.write_file("a.txt", "hello world")
+    result = await registry.execute(
+        "edit_file",
+        {"path": "../outside.txt", "old_string": "world", "new_string": "there"},
+    )
+    assert result.is_error
+    assert result.content.startswith("WorkspaceViolation:")
 
 
 async def test_read_output_is_capped(env: LocalEnvironment) -> None:

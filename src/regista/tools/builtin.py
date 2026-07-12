@@ -68,6 +68,28 @@ def builtin_tools(
         await environment.write_file(path, content)
         return f"Wrote {len(content)} characters to {path}"
 
+    @tool
+    async def edit_file(path: str, old_string: str, new_string: str) -> str:
+        """Replace one exact string occurrence in a workspace file.
+
+        Args:
+            path: Workspace-relative file path, e.g. "src/app.py".
+            old_string: The exact existing text to replace.
+            new_string: The exact replacement text.
+        """
+        content = await environment.read_file(path)
+        matches = content.count(old_string)
+        if matches == 0:
+            raise ValueError(f"{old_string!r} was not found in {path}")
+        if matches > 1:
+            raise ValueError(
+                f"{old_string!r} occurs {matches} times in {path}; "
+                "edit_file requires exactly one match"
+            )
+        updated = content.replace(old_string, new_string, 1)
+        await environment.write_file(path, updated)
+        return f"Edited {path}"
+
     @tool(parallel_safe=True)
     async def list_dir(path: str = ".") -> str:
         """List a workspace directory; names ending in "/" are directories.
@@ -149,4 +171,4 @@ def builtin_tools(
         body = _truncate(response.text, max_output_chars)
         return f"HTTP {response.status_code}\n\n{body}"
 
-    return [read_file, write_file, list_dir, glob, search_files, shell, fetch]
+    return [read_file, write_file, edit_file, list_dir, glob, search_files, shell, fetch]
