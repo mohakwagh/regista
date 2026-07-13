@@ -50,6 +50,10 @@ PRICES: dict[str, ModelPrice] = {
     "claude-haiku-4-5": ModelPrice(1.00, 5.00),
     "gpt-4o": ModelPrice(2.50, 10.00),
     "gpt-4o-mini": ModelPrice(0.15, 0.60),
+    # Source: self-hosted Ollama models have no metered API token price.
+    "ollama/llama3": ModelPrice(0.00, 0.00),
+    "ollama/mistral": ModelPrice(0.00, 0.00),
+    "ollama/qwen2.5": ModelPrice(0.00, 0.00),
 }
 
 
