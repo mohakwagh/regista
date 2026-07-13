@@ -87,6 +87,23 @@ def test_summary_and_indexes(tmp_path: Path) -> None:
     assert request.request_hash == canonical_hash(request.request)
     assert response.response == {"stop_reason": "tool_use"}
     assert trace.tool_results()["tu_1"].content == "ok"
+    assert (
+        str(summary)
+        == "\n".join(
+            [
+                f"session_id: {trace.start.session_id}",
+                "task: create hello.txt",
+                "model: fake-model",
+                "turns: 1",
+                "events: 7",
+                "tool_calls: 1",
+                "cost_usd: $0.001000",
+                "stop_reason: end_turn",
+                "replay_of: -",
+            ]
+        )
+    )
+    assert "TraceSummary(" in repr(summary)
 
 
 def test_crashed_session_has_no_end(tmp_path: Path) -> None:
@@ -106,6 +123,8 @@ def test_crashed_session_has_no_end(tmp_path: Path) -> None:
     trace = Trace.load(trace_path)
     assert trace.end is None
     assert trace.summary().stop_reason is None
+    assert "cost_usd: unknown" in str(trace.summary())
+    assert "stop_reason: unknown" in str(trace.summary())
 
 
 def test_newer_schema_version_rejected(tmp_path: Path) -> None:
