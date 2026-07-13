@@ -92,15 +92,18 @@ def builtin_tools(
         return _truncate("\n".join(matches), max_output_chars)
 
     @tool(parallel_safe=True)
-    async def search_files(pattern: str, glob: str = "**/*") -> str:
+    async def search_files(
+        pattern: str, glob: str = "**/*", case_insensitive: bool = False
+    ) -> str:
         """Search workspace files for a regular expression; results are
         "path:line: text" lines.
 
         Args:
             pattern: A Python regular expression to search for.
             glob: Which files to search, as a glob pattern; defaults to all.
+            case_insensitive: Whether to ignore case while matching.
         """
-        regex = re.compile(pattern)
+        regex = re.compile(pattern, re.IGNORECASE if case_insensitive else 0)
         matches: list[str] = []
         for path in await environment.glob(glob):
             try:
